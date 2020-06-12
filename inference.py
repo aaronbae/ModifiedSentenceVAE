@@ -11,9 +11,11 @@ from nltk.tokenize import TweetTokenizer
         
 from paranmt import ParaNMT
 
+#from coco import Coco
+
 def main(args):
     
-    paraNMT = ParaNMT(
+    paranmt = ParaNMT(
         data_dir=args.data_dir,
         split='test',
         create_data=args.create_data,
@@ -22,7 +24,7 @@ def main(args):
     )
 
     data_loader = DataLoader(
-        dataset=paraNMT,
+        dataset=paranmt,
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=0,
@@ -69,22 +71,23 @@ def main(args):
         batch_size = batch['original']['input'].size(0) # batch sizes are the same for original and paraphrase
 
         original = batch['original']['input'].long().cuda()
-        original_length = batch['original']['length']
+        paraphrase = batch['paraphrase']['target'].long().cuda()
+        paraphrase_length = batch['paraphrase']['length']
 
         # Inference Network
         samples, z = model.inference(original)
         
         # Accuracy Measure
         mask = torch.arange(0, args.max_sequence_length).repeat(batch_size, 1)
-        mask = mask < original_length.unsqueeze(1).repeat(1, args.max_sequence_length)
-        result = (original.cpu==samples)*mask
+        mask = mask < paraphrase_length.unsqueeze(1).repeat(1, args.max_sequence_length)
+        result = (paraphrase.cpu()==samples.cpu())*mask
         correct += result.sum().item()
-        total += original_length.sum().item()
+        total += paraphrase_length.sum().item()
         if iteration % 100 == 0:
-            print("Batch {:5d} Accuracy : {:4d} / {:7d} = {:3.1f}%".format(iteration, correct, total, (correct/total)) )
-        if iteration == 1663:
-            print(*idx2word(original, i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
-            print(*idx2word(samples, i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
+            print("Batch {:5d} Accuracy : {:4d} / {:7d} = {:3.1f}%".format(iteration, correct, total, (100*correct/total)) )
+        if iteration == 0:
+            print(*idx2word(paraphrase[:5], i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
+            print(*idx2word(samples[:5], i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
         #print('----------BATCH {:4d}----------'.format(iteration))
         #print(*idx2word(original, i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
         #print('-------------------------------')
